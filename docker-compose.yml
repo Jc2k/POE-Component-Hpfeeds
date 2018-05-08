@@ -1,0 +1,21 @@
+version: '2.1'
+
+services:
+  hpfeeds:
+    image: jc2k/hpfeeds3-broker
+    environment:
+      HPFEEDS_TEST_SECRET: 'test'
+      HPFEEDS_TEST_SUBCHANS: 'test'
+      HPFEEDS_TEST_PUBCHANS: 'test'
+    command:
+     - '/app/bin/hpfeeds-broker'
+     - '--bind=0.0.0.0:20000'
+     - '--exporter=0.0.0.0:9431'
+     - '--auth=env'
+    ports:
+     - "0.0.0.0:20000:20000"
+
+  hpfeeds-client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
