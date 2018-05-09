@@ -2,6 +2,8 @@ package POE::Component::Hpfeeds;
 use strict;
 use warnings;
 
+# ABSTRACT: A POE TCP Client for publishing/subscribing to a hpfeeds broker.
+
 use Data::Dumper;
 
 use Carp 'carp', 'croak';
@@ -9,6 +11,7 @@ use Digest::SHA;
 use POE::Session;
 use POE::Filter::Hpfeeds;
 use POE::Component::Client::TCP;
+use Socket qw(SOL_SOCKET SO_KEEPALIVE IPPROTO_TCP TCP_NODELAY TCP_KEEPIDLE TCP_KEEPINTVL TCP_KEEPCNT);
 
 use constant {
   OPCODE_ERROR => 0,
@@ -40,7 +43,15 @@ sub spawn {
 
 		'Filter'        => 'POE::Filter::Hpfeeds',
 
-		'Connected'     => sub {},
+		'Connected'     => sub {
+      my ($socket, $peer_addr, $peer_port) = @_[ARG0, ARG1, ARG2];
+
+      setsockopt($socket, SOL_SOCKET, SO_KEEPALIVE, 1);
+      setsockopt($socket, IPPROTO_TCP, TCP_NODELAY, 1);
+      setsockopt($socket, IPPROTO_TCP, TCP_KEEPIDLE, 10);
+      setsockopt($socket, IPPROTO_TCP, TCP_KEEPINTVL, 5);
+      setsockopt($socket, IPPROTO_TCP, TCP_KEEPCNT, 3);
+    },
 
 		'ServerInput'   => sub {
       my ($kernel, $heap, $msg) = @_[KERNEL, HEAP, ARG0];

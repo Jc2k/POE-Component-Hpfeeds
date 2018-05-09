@@ -3,6 +3,8 @@ package POE::Filter::Hpfeeds;
 use warnings;
 use strict;
 
+# ABSTRACT: A POE Filter for encoding and decoding the Hpfeeds protocol.
+
 use Data::Dumper;
 
 use Carp qw(carp croak);
