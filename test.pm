@@ -6,10 +6,10 @@ use POE;
 use POE::Component::Hpfeeds;
 
 my $session = POE::Component::Hpfeeds->spawn(
-  RemoteAddress => 'localhost',
+  RemoteAddress => 'hpfeeds',
   RemotePort    => 20000,
-  Ident         => 'ident',
-  Secret        => 'secret',
+  Ident         => 'test',
+  Secret        => 'test',
   Connected     => sub {
     my ($kernel, $session) = @_[KERNEL, SESSION];
     $kernel->post($session => subscribe => 'test');

@@ -26,12 +26,9 @@ sub spawn {
 
 	croak "$self requires an even number of parameters" if @_ & 1;
 
-  $self->{ident} = 'test';
-  $self->{secret} = 'test';
-
 	$self->{session_id} = POE::Component::Client::TCP->new(
-    'RemoteAddress' => 'hpfeeds',
-    'RemotePort' => '20000',
+    'RemoteAddress' => $param->{RemoteAddress},
+    'RemotePort' => $param->{RemotePort},
     #'BindAddress' => '127.0.0.1',
     #'BindPort' => '8080',
 
@@ -40,7 +37,10 @@ sub spawn {
 		'Connected'     => sub {},
 
 		'ServerInput'   => sub {
-      my ($kernel, $msg) = @_[KERNEL, ARG0];
+      my ($kernel, $heap, $msg) = @_[KERNEL, HEAP, ARG0];
+
+			return unless $heap->{connected};
+			return if $heap->{shutdown};
 
       if ($msg->{op} == 1) {
         my $length = unpack("C", $msg->{payload});
@@ -87,8 +87,12 @@ sub spawn {
       'authenticate' => sub {
         my ($heap, $rand) = @_[HEAP, ARG0];
 
-        my $ident = $self->{ident};
-        my $sig = Digest::SHA::sha1($rand . $self->{secret});
+				return unless $heap->{connected};
+			  return if $heap->{shutdown};
+
+        my $ident = $param->{Ident};
+        my $secret = $param->{Secret};
+        my $sig = Digest::SHA::sha1($rand . $secret);
 
         my $msg = {
           op => 2,
@@ -99,8 +103,11 @@ sub spawn {
       },
       'subscribe' => sub {
         my ($heap, $channel) = @_[HEAP, ARG0];
-        my $ident = $self->{ident};
 
+			  return unless $heap->{connected};
+			  return if $heap->{shutdown};
+
+        my $ident = $param->{Ident};
         my $payload = pack("C", length($ident)) . $ident;
         $payload .= $channel;
 
@@ -113,8 +120,11 @@ sub spawn {
       },
       'unsubscribe' => sub {
         my ($heap, $channel) = @_[HEAP, ARG0];
-        my $ident = $self->{ident};
 
+				return unless $heap->{connected};
+			  return if $heap->{shutdown};
+
+        my $ident = $param->{Ident};
         my $payload = pack("C", length($ident)) . $ident;
         $payload .= $channel;
 
@@ -127,8 +137,11 @@ sub spawn {
       },
       'publish' => sub {
         my ($heap, $channel, $data) = @_[HEAP, ARG0, ARG1];
-        my $ident = $self->{ident};
 
+				return unless $heap->{connected};
+			  return if $heap->{shutdown};
+
+        my $ident = $param->{Ident};
         my $payload = pack("C", length($ident)) . $ident;
         $payload .= pack("C", length($channel)) . $channel;
         $payload .= $data;
