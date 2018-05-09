@@ -10,9 +10,15 @@ use POE::Session;
 use POE::Filter::Hpfeeds;
 use POE::Component::Client::TCP;
 
-$Data::Dumper::Indent = 1;
-$Data::Dumper::Sortkeys = 1;
-$Data::Dumper::Useqq = 1;
+use constant {
+  OPCODE_ERROR => 0,
+	OPCODE_INFO => 1,
+	OPCODE_AUTH => 2,
+	OPCODE_PUBLISH => 3,
+	OPCODE_SUBSCRIBE => 4,
+	OPCODE_UNSUBSCRIBE => 5,
+	OPCODE_MAX => 6,
+};
 
 our $VERSION = 0.1;
 
@@ -42,20 +48,26 @@ sub spawn {
 			return unless $heap->{connected};
 			return if $heap->{shutdown};
 
-      if ($msg->{op} == 1) {
-        my $length = unpack("C", $msg->{payload});
-        my $name = substr($msg->{payload}, 1, $length);
-        my $rand = substr($msg->{payload}, $length + 1);
+			my $payload = $msg->{payload};
+
+      if ($msg->{op} == OPCODE_ERROR) {
+				warn "ProtocolError: $payload";
+	      $_[KERNEL]->delay(reconnect => 1);
+			}
+      elsif ($msg->{op} == OPCODE_INFO) {
+        my $length = unpack("C", $payload);
+        my $name = substr($payload, 1, $length);
+        my $rand = substr($payload, $length + 1);
 
         $kernel->post($_[SESSION] => authenticate => $rand);
 
         local $_[ARG0] = \$name;
         ref $param->{'Connected'} eq 'CODE' && $param->{'Connected'}->(@_);
       }
-      elsif ($msg->{op} == 3) {
-        my $length = unpack("C", $msg->{payload});
-        my $ident = substr($msg->{payload}, 1, $length);
-        my $rest = substr($msg->{payload}, $length + 1);
+      elsif ($msg->{op} == OPCODE_PUBLISH) {
+        my $length = unpack("C", $payload);
+        my $ident = substr($payload, 1, $length);
+        my $rest = substr($payload, $length + 1);
 
         $length = unpack("C", $rest);
         my $channel = substr($rest, 1, $length);
@@ -95,7 +107,7 @@ sub spawn {
         my $sig = Digest::SHA::sha1($rand . $secret);
 
         my $msg = {
-          op => 2,
+          op => OPCODE_AUTH,
           payload => pack("C", length($ident)) . $ident . $sig,
         };
 
@@ -112,7 +124,7 @@ sub spawn {
         $payload .= $channel;
 
         my $msg = {
-          op => 4,
+          op => OPCODE_SUBSCRIBE,
           payload => $payload,
         };
 
@@ -129,7 +141,7 @@ sub spawn {
         $payload .= $channel;
 
         my $msg = {
-          op => 5,
+          op => OPCODE_UNSUBSCRIBE,
           payload => $payload,
         };
 
@@ -147,7 +159,7 @@ sub spawn {
         $payload .= $data;
 
         my $msg = {
-          op => 3,
+          op => OPCODE_PUBLISH,
           payload => $payload,
         };
 
